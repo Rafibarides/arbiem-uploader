@@ -3,12 +3,131 @@ import { convertImageToJPG, convertAudioToMP3, convertVideoToMP4, generateCredit
 
 export class DropboxUploader {
   private dbx: Dropbox;
+  private refreshToken?: string;
+  private accessToken: string;
+  private tokenExpiry?: Date;
   
-  constructor(accessToken: string) {
+  constructor(accessToken: string, refreshToken?: string) {
+    this.accessToken = accessToken;
+    this.refreshToken = refreshToken;
     this.dbx = new Dropbox({ 
       accessToken,
-      fetch: fetch
+      fetch: fetch,
+      // Add additional configuration for better compatibility
+      selectUser: undefined,
+      selectAdmin: undefined,
+      pathRoot: undefined
     });
+  }
+
+  // Refresh the access token using refresh token
+  private async refreshAccessToken(): Promise<void> {
+    if (!this.refreshToken) {
+      throw new Error('No refresh token available. Please update your Dropbox configuration.');
+    }
+
+    try {
+      console.log('Refreshing Dropbox access token...');
+      
+      // Your Dropbox app credentials
+      const APP_KEY = 'j6vu4sp9a2n84c0';
+      const APP_SECRET = '1jvv4ojc8nh49jg';
+      
+      const response = await fetch('https://api.dropbox.com/oauth2/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': `Basic ${btoa(`${APP_KEY}:${APP_SECRET}`)}`
+        },
+        body: new URLSearchParams({
+          refresh_token: this.refreshToken,
+          grant_type: 'refresh_token'
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Token refresh failed: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      this.accessToken = data.access_token;
+      
+      // Calculate expiry time (typically 4 hours)
+      this.tokenExpiry = new Date(Date.now() + (data.expires_in * 1000));
+      
+      // Update the Dropbox client with new token
+      this.dbx = new Dropbox({ 
+        accessToken: this.accessToken,
+        fetch: fetch,
+        selectUser: undefined,
+        selectAdmin: undefined,
+        pathRoot: undefined
+      });
+
+      console.log('Access token refreshed successfully. Expires at:', this.tokenExpiry);
+    } catch (error) {
+      console.error('Failed to refresh access token:', error);
+      throw new Error('Failed to refresh Dropbox access token. Please check your refresh token and app credentials.');
+    }
+  }
+
+  // Check if token needs refresh and refresh if necessary
+  private async ensureValidToken(): Promise<void> {
+    // If we have a refresh token and the access token is close to expiring (within 5 minutes)
+    if (this.refreshToken && this.tokenExpiry) {
+      const fiveMinutesFromNow = new Date(Date.now() + 5 * 60 * 1000);
+      if (this.tokenExpiry <= fiveMinutesFromNow) {
+        await this.refreshAccessToken();
+      }
+    }
+  }
+
+  // Test the connection and token validity
+  async testConnection(): Promise<boolean> {
+    try {
+      // Ensure we have a valid token first
+      await this.ensureValidToken();
+      
+      console.log('Testing Dropbox connection...');
+      const response = await this.dbx.usersGetCurrentAccount();
+      console.log('Dropbox connection successful:', response.result.name.display_name);
+      console.log('Account email:', response.result.email);
+      return true;
+    } catch (error: any) {
+      console.error('Dropbox connection failed:', error);
+      
+      // If we get a 401 and have a refresh token, try refreshing
+      if (error?.status === 401 && this.refreshToken) {
+        try {
+          console.log('Got 401 error, attempting to refresh token...');
+          await this.refreshAccessToken();
+          // Try the connection test again with new token
+          const response = await this.dbx.usersGetCurrentAccount();
+          console.log('Dropbox connection successful after refresh:', response.result.name.display_name);
+          return true;
+        } catch (refreshError) {
+          console.error('Token refresh failed:', refreshError);
+        }
+      }
+      
+      console.error('Error details:', {
+        status: error?.status,
+        error: error?.error,
+        message: error?.message,
+        stack: error?.stack
+      });
+      
+      // Provide specific error messages based on the error type
+      if (error?.status === 401) {
+        throw new Error('Dropbox authentication failed. The access token has expired and could not be refreshed. Please update your token configuration.');
+      } else if (error?.status === 403) {
+        throw new Error('Dropbox access forbidden. The token may not have sufficient permissions.');
+      } else if (error?.message?.includes('NetworkError') || error?.message?.includes('CORS')) {
+        throw new Error('Network/CORS error. This may be due to browser security restrictions.');
+      } else {
+        throw new Error(`Dropbox authentication failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
   }
 
   private toCamelCase(str: string): string {
@@ -25,24 +144,28 @@ export class DropboxUploader {
   }
 
   private async uploadFile(file: File, path: string, onProgress?: (progress: number) => void): Promise<void> {
+    // Ensure we have a valid token before starting upload
+    await this.ensureValidToken();
+    
     const CHUNK_SIZE = 8 * 1024 * 1024; // 8MB chunks
     const UPLOAD_TIMEOUT = 60000; // 60 seconds timeout per chunk
     
-    if (file.size <= CHUNK_SIZE) {
-      // Small file - upload directly with timeout
-      const uploadPromise = this.dbx.filesUpload({
-        path,
-        contents: file,
-        mode: 'overwrite',
-        autorename: true
-      });
-      
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Upload timeout')), UPLOAD_TIMEOUT);
-      });
-      
-      await Promise.race([uploadPromise, timeoutPromise]);
-      onProgress?.(100);
+    try {
+      if (file.size <= CHUNK_SIZE) {
+        // Small file - upload directly with timeout
+        const uploadPromise = this.dbx.filesUpload({
+          path,
+          contents: file,
+          mode: 'overwrite',
+          autorename: true
+        });
+        
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Upload timeout')), UPLOAD_TIMEOUT);
+        });
+        
+        await Promise.race([uploadPromise, timeoutPromise]);
+        onProgress?.(100);
     } else {
       // Large file - use upload session with timeout and retry logic
       let sessionStart;
@@ -129,6 +252,23 @@ export class DropboxUploader {
         offset += CHUNK_SIZE;
         onProgress?.(Math.round((offset / file.size) * 100));
       }
+    }
+    } catch (error: any) {
+      // Handle specific Dropbox errors
+      if (error?.status === 401) {
+        throw new Error('Dropbox authentication failed. The access token may be expired or invalid. Please contact support.');
+      } else if (error?.status === 403) {
+        throw new Error('Dropbox access forbidden. The token may not have sufficient permissions.');
+      } else if (error?.status === 429) {
+        throw new Error('Dropbox rate limit exceeded. Please try again later.');
+      } else if (error?.status === 507) {
+        throw new Error('Dropbox storage quota exceeded. Please free up space or upgrade your plan.');
+      } else if (error?.message?.includes('Network')) {
+        throw new Error('Network error. Please check your internet connection and try again.');
+      }
+      
+      // Re-throw the original error if it's not a known Dropbox error
+      throw error;
     }
   }
 
@@ -218,6 +358,9 @@ export class DropboxUploader {
     },
     onStatusUpdate?: (status: string, progress: number) => void
   ): Promise<void> {
+    // Test connection first
+    onStatusUpdate?.('Verifying Dropbox connection...', 0);
+    await this.testConnection();
     const folderPath = `/Arbiem Sounds Uploads/${artistData.artistName}`;
     
     // Create artist info JSON
@@ -433,6 +576,8 @@ export class DropboxUploader {
     },
     onProgress?: (progress: number) => void
   ): Promise<void> {
+    // Test connection first
+    await this.testConnection();
     const folderPath = `/Arbiem Sounds Uploads/${artistName}/${singleData.songName}`;
     
     const files: { file: File; path: string; weight: number }[] = [];
@@ -507,6 +652,8 @@ export class DropboxUploader {
     },
     onProgress?: (progress: number) => void
   ): Promise<void> {
+    // Test connection first
+    await this.testConnection();
     const folderPath = `/Arbiem Sounds Uploads/${artistName}/${albumData.albumName}`;
     
     const files: { file: File; path: string; weight: number }[] = [];
@@ -580,6 +727,8 @@ export class DropboxUploader {
     },
     onProgress?: (progress: number) => void
   ): Promise<void> {
+    // Test connection first
+    await this.testConnection();
     const folderPath = `/Arbiem Sounds Uploads/${artistName}/Videos/${videoData.videoTitle}`;
     
     const files: { file: File; path: string; weight: number }[] = [];
