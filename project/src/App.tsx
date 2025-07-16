@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Music, Upload, User, FileText, Image, Headphones, ExternalLink, ChevronRight, ChevronLeft, Check, Plus, X } from 'lucide-react';
+import { Music, Upload, User, FileText, Image, Headphones, ExternalLink, ChevronRight, ChevronLeft, Check, Plus, X, AlertCircle, Shield } from 'lucide-react';
 import { DropboxUploader } from './utils/dropboxUploader';
 
 const MUSIC_GENRES = [
@@ -77,12 +77,55 @@ const FileUploadArea: React.FC<FileUploadAreaProps> = ({ onFileChange, acceptedT
   );
 };
 
+interface LegalAgreementProps {
+  title: string;
+  content: string;
+  isChecked: boolean;
+  onChange: (checked: boolean) => void;
+  required?: boolean;
+}
+
+const LegalAgreement: React.FC<LegalAgreementProps> = ({ title, content, isChecked, onChange, required = true }) => {
+  return (
+    <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+      <div className="flex items-start space-x-3">
+        <input
+          type="checkbox"
+          id={title}
+          checked={isChecked}
+          onChange={(e) => onChange(e.target.checked)}
+          className="mt-1 h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+          required={required}
+        />
+        <div className="flex-1">
+          <label htmlFor={title} className="block text-sm font-medium text-gray-900 mb-2 cursor-pointer">
+            {title} {required && <span className="text-red-500">*</span>}
+          </label>
+          <p className="text-sm text-gray-700 leading-relaxed">
+            {content}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 function App() {
   const [step, setStep] = useState('start');
   const [userType, setUserType] = useState('');
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState('');
   const [uploadProgress, setUploadProgress] = useState(0);
+
+  // Legal agreements state
+  const [legalAgreements, setLegalAgreements] = useState({
+    googleFormCompleted: false,
+    contentOwnership: false,
+    artworkRights: false,
+    audioRights: false,
+    videoRights: false,
+    generalTerms: false
+  });
 
   // New artist state
   const [newArtist, setNewArtist] = useState({
@@ -171,6 +214,10 @@ function App() {
       thumbnail: null as File | null
     }
   });
+
+  const handleLegalAgreementChange = (key: keyof typeof legalAgreements, checked: boolean) => {
+    setLegalAgreements(prev => ({ ...prev, [key]: checked }));
+  };
 
   const handleFileChange = (file: File | null, field: string) => {
     if (userType === 'new') {
@@ -333,7 +380,40 @@ function App() {
     }
   };
 
+  const validateLegalAgreements = (): boolean => {
+    const current = userType === 'new' ? newArtist : existingArtist;
+    
+    // Always require general terms and content ownership
+    if (!legalAgreements.generalTerms || !legalAgreements.contentOwnership) {
+      return false;
+    }
+
+    // Check artwork rights
+    if (userType === 'new' && newArtist.profilePicture && !legalAgreements.artworkRights) {
+      return false;
+    }
+    
+    if (current.uploadType === 'single') {
+      if (current.singleData.artwork && !legalAgreements.artworkRights) return false;
+      if (current.singleData.audioFile && !legalAgreements.audioRights) return false;
+    } else if (current.uploadType === 'album') {
+      if (current.albumData.albumArtwork && !legalAgreements.artworkRights) return false;
+      if (current.albumData.tracks.some(track => track.audioFile) && !legalAgreements.audioRights) return false;
+    } else if (current.uploadType === 'video') {
+      if (current.videoData.videoFile && !legalAgreements.videoRights) return false;
+      if (current.videoData.thumbnail && !legalAgreements.artworkRights) return false;
+    }
+
+    return true;
+  };
+
   const handleSubmit = async () => {
+    // Validate all required legal agreements
+    if (!validateLegalAgreements()) {
+      alert('Please agree to all required terms and conditions before uploading.');
+      return;
+    }
+
     setUploading(true);
     setUploadStatus('Preparing upload...');
     setUploadProgress(0);
@@ -393,6 +473,14 @@ function App() {
         setUploading(false);
         setUploadStatus('');
         setUploadProgress(0);
+        setLegalAgreements({
+          googleFormCompleted: false,
+          contentOwnership: false,
+          artworkRights: false,
+          audioRights: false,
+          videoRights: false,
+          generalTerms: false
+        });
         setNewArtist({
           artistName: '',
           bio: '',
@@ -486,26 +574,133 @@ function App() {
   };
 
   const handleBack = () => {
+    if (step === 'legalForm') {
+      setStep('start');
+      setUserType('');
+      return;
+    }
+
     if (userType === 'new') {
       if (newArtist.uploadType) {
         // If on a specific upload type, go back to upload type selection
         setNewArtist(prev => ({ ...prev, uploadType: '' }));
       } else if (step === 'newArtist') {
-        // If on artist details, go back to start
-        setStep('start');
-        setUserType('');
+        // If on artist details, go back to legal form
+        setStep('legalForm');
       }
     } else if (userType === 'existing') {
       if (existingArtist.uploadType) {
         // If on a specific upload type, go back to upload type selection
         setExistingArtist(prev => ({ ...prev, uploadType: '' }));
       } else if (step === 'existingArtist') {
-        // If on artist name input, go back to start
-        setStep('start');
-        setUserType('');
+        // If on artist name input, go back to legal form
+        setStep('legalForm');
       }
     }
   };
+
+  // Legal Form Step
+  if (step === 'legalForm') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-4xl w-full">
+          <div className="text-center mb-8">
+            <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-full p-4 w-20 h-20 mx-auto mb-4">
+              <Shield className="h-12 w-12 text-white" />
+            </div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Legal Agreement Required</h1>
+            <p className="text-gray-600">Please complete the required legal form before proceeding</p>
+          </div>
+
+          <div className="space-y-6">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+              <div className="flex items-center mb-4">
+                <AlertCircle className="h-6 w-6 text-red-600 mr-3" />
+                <h3 className="text-lg font-semibold text-red-900">Required: Complete Legal Form</h3>
+              </div>
+              <p className="text-red-800 mb-4">
+                Before uploading any content to Arbiem Sounds, you must complete our legal agreement form. 
+                This ensures compliance with copyright and licensing requirements.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <a
+                  href="https://docs.google.com/forms/d/e/1FAIpQLSc4p9nkZqOe862T1V9R4ZWVAXDqZSRQV7mem9vLKsEydrTWBQ/viewform?usp=header"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  <ExternalLink className="h-5 w-5 mr-2" />
+                  Complete Legal Form
+                </a>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="googleFormCompleted"
+                    checked={legalAgreements.googleFormCompleted}
+                    onChange={(e) => handleLegalAgreementChange('googleFormCompleted', e.target.checked)}
+                    className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded mr-3"
+                  />
+                  <label htmlFor="googleFormCompleted" className="text-sm font-medium text-gray-900">
+                    I have completed the legal form
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900">Additional Terms & Conditions</h3>
+              
+              <LegalAgreement
+                title="General Terms of Service"
+                content="I acknowledge that by uploading content to Arbiem Sounds, I understand and agree to the platform's terms of service. I understand that my content will be made available to Arbiem's users and I can request removal at any time. Arbiem reserves the right to stream, distribute, and promote uploaded content."
+                isChecked={legalAgreements.generalTerms}
+                onChange={(checked) => handleLegalAgreementChange('generalTerms', checked)}
+              />
+
+              <LegalAgreement
+                title="Content Ownership & Rights"
+                content="I am the owner and/or rights holder of all content I am uploading, including but not limited to music, artwork, videos, and any associated materials. I grant Arbiem Sounds (arbiem.com) full rights to use, distribute, stream, and promote this content on the platform. I understand this makes my content available to platform users."
+                isChecked={legalAgreements.contentOwnership}
+                onChange={(checked) => handleLegalAgreementChange('contentOwnership', checked)}
+              />
+            </div>
+
+            <div className="flex justify-between pt-6 border-t border-gray-200">
+              <button
+                onClick={() => {
+                  setStep('start');
+                  setUserType('');
+                }}
+                className="flex items-center px-6 py-3 text-gray-600 hover:text-gray-800 transition-colors"
+              >
+                <ChevronLeft className="h-5 w-5 mr-1" />
+                Back
+              </button>
+              
+              <button
+                onClick={() => {
+                  if (userType === 'new') {
+                    setStep('newArtist');
+                  } else {
+                    setStep('existingArtist');
+                  }
+                }}
+                disabled={!legalAgreements.googleFormCompleted || !legalAgreements.generalTerms || !legalAgreements.contentOwnership}
+                className={`px-8 py-3 rounded-lg font-semibold transition-all ${
+                  legalAgreements.googleFormCompleted && legalAgreements.generalTerms && legalAgreements.contentOwnership
+                    ? 'bg-purple-600 text-white hover:bg-purple-700'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+              >
+                Continue
+                <ChevronRight className="h-5 w-5 ml-1" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (step === 'start') {
     return (
@@ -517,13 +712,16 @@ function App() {
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Arbiem Sounds</h1>
             <p className="text-gray-600">Upload your music content</p>
+            <p className="text-sm text-gray-500 mt-2">
+              You will be asked to complete the licensing agreement before uploading
+            </p>
           </div>
 
           <div className="space-y-4">
             <button
               onClick={() => {
                 setUserType('new');
-                setStep('newArtist');
+                setStep('legalForm');
               }}
               className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 px-6 rounded-xl font-semibold hover:from-purple-700 hover:to-blue-700 transition-all transform hover:scale-105 shadow-lg hover:shadow-xl"
             >
@@ -537,7 +735,7 @@ function App() {
             <button
               onClick={() => {
                 setUserType('existing');
-                setStep('existingArtist');
+                setStep('legalForm');
               }}
               className="w-full bg-white border-2 border-gray-300 text-gray-700 py-4 px-6 rounded-xl font-semibold hover:border-purple-400 hover:text-purple-600 transition-all transform hover:scale-105"
             >
@@ -620,6 +818,16 @@ function App() {
                           label="profile picture"
                           file={newArtist.profilePicture}
                         />
+                        {newArtist.profilePicture && !legalAgreements.artworkRights && (
+                          <div className="mt-3">
+                            <LegalAgreement
+                              title="Artwork Rights Agreement"
+                              content="I confirm that I own or have the rights to use this artwork/image. I grant Arbiem Sounds full rights to display, use, and distribute this artwork in connection with my artist profile and content."
+                              isChecked={legalAgreements.artworkRights}
+                              onChange={(checked) => handleLegalAgreementChange('artworkRights', checked)}
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -720,6 +928,16 @@ function App() {
                           label="audio file"
                           file={newArtist.singleData.audioFile}
                         />
+                        {newArtist.singleData.audioFile && !legalAgreements.audioRights && (
+                          <div className="mt-3">
+                            <LegalAgreement
+                              title="Audio Rights Agreement"
+                              content="I confirm that I own or have the rights to this audio recording. I grant Arbiem Sounds full rights to stream, distribute, and use this audio content on the platform and for promotional purposes."
+                              isChecked={legalAgreements.audioRights}
+                              onChange={(checked) => handleLegalAgreementChange('audioRights', checked)}
+                            />
+                          </div>
+                        )}
                       </div>
 
                       <div>
@@ -730,6 +948,16 @@ function App() {
                           label="artwork"
                           file={newArtist.singleData.artwork}
                         />
+                        {newArtist.singleData.artwork && !legalAgreements.artworkRights && (
+                          <div className="mt-3">
+                            <LegalAgreement
+                              title="Artwork Rights Agreement"
+                              content="I confirm that I own or have the rights to use this artwork/image. I grant Arbiem Sounds full rights to display, use, and distribute this artwork in connection with my music content."
+                              isChecked={legalAgreements.artworkRights}
+                              onChange={(checked) => handleLegalAgreementChange('artworkRights', checked)}
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -849,6 +1077,16 @@ function App() {
                           label="album artwork"
                           file={newArtist.albumData.albumArtwork}
                         />
+                        {newArtist.albumData.albumArtwork && !legalAgreements.artworkRights && (
+                          <div className="mt-3">
+                            <LegalAgreement
+                              title="Artwork Rights Agreement"
+                              content="I confirm that I own or have the rights to use this artwork/image. I grant Arbiem Sounds full rights to display, use, and distribute this artwork in connection with my album content."
+                              isChecked={legalAgreements.artworkRights}
+                              onChange={(checked) => handleLegalAgreementChange('artworkRights', checked)}
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -914,6 +1152,16 @@ function App() {
                                 label="audio file"
                                 file={track.audioFile}
                               />
+                              {track.audioFile && !legalAgreements.audioRights && (
+                                <div className="mt-3">
+                                  <LegalAgreement
+                                    title="Audio Rights Agreement"
+                                    content="I confirm that I own or have the rights to this audio recording. I grant Arbiem Sounds full rights to stream, distribute, and use this audio content on the platform and for promotional purposes."
+                                    isChecked={legalAgreements.audioRights}
+                                    onChange={(checked) => handleLegalAgreementChange('audioRights', checked)}
+                                  />
+                                </div>
+                              )}
                             </div>
 
                             <div className="grid md:grid-cols-2 gap-4 mb-4">
@@ -1011,6 +1259,16 @@ function App() {
                           label="video file"
                           file={newArtist.videoData.videoFile}
                         />
+                        {newArtist.videoData.videoFile && !legalAgreements.videoRights && (
+                          <div className="mt-3">
+                            <LegalAgreement
+                              title="Video Rights Agreement"
+                              content="I confirm that I own or have the rights to this video content. I grant Arbiem Sounds full rights to stream, distribute, and use this video content on the platform and for promotional purposes."
+                              isChecked={legalAgreements.videoRights}
+                              onChange={(checked) => handleLegalAgreementChange('videoRights', checked)}
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -1022,6 +1280,16 @@ function App() {
                         label="thumbnail image"
                         file={newArtist.videoData.thumbnail}
                       />
+                      {newArtist.videoData.thumbnail && !legalAgreements.artworkRights && (
+                        <div className="mt-3">
+                          <LegalAgreement
+                            title="Artwork Rights Agreement"
+                            content="I confirm that I own or have the rights to use this thumbnail image. I grant Arbiem Sounds full rights to display, use, and distribute this thumbnail in connection with my video content."
+                            isChecked={legalAgreements.artworkRights}
+                            onChange={(checked) => handleLegalAgreementChange('artworkRights', checked)}
+                          />
+                        </div>
+                      )}
                       <p className="text-sm text-gray-500 mt-2">
                         If no thumbnail is provided, the video platform will generate one automatically.
                       </p>
@@ -1164,6 +1432,16 @@ function App() {
                           label="audio file"
                           file={existingArtist.singleData.audioFile}
                         />
+                        {existingArtist.singleData.audioFile && !legalAgreements.audioRights && (
+                          <div className="mt-3">
+                            <LegalAgreement
+                              title="Audio Rights Agreement"
+                              content="I confirm that I own or have the rights to this audio recording. I grant Arbiem Sounds full rights to stream, distribute, and use this audio content on the platform and for promotional purposes."
+                              isChecked={legalAgreements.audioRights}
+                              onChange={(checked) => handleLegalAgreementChange('audioRights', checked)}
+                            />
+                          </div>
+                        )}
                       </div>
 
                       <div>
@@ -1174,6 +1452,16 @@ function App() {
                           label="artwork"
                           file={existingArtist.singleData.artwork}
                         />
+                        {existingArtist.singleData.artwork && !legalAgreements.artworkRights && (
+                          <div className="mt-3">
+                            <LegalAgreement
+                              title="Artwork Rights Agreement"
+                              content="I confirm that I own or have the rights to use this artwork/image. I grant Arbiem Sounds full rights to display, use, and distribute this artwork in connection with my music content."
+                              isChecked={legalAgreements.artworkRights}
+                              onChange={(checked) => handleLegalAgreementChange('artworkRights', checked)}
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -1293,6 +1581,16 @@ function App() {
                           label="album artwork"
                           file={existingArtist.albumData.albumArtwork}
                         />
+                        {existingArtist.albumData.albumArtwork && !legalAgreements.artworkRights && (
+                          <div className="mt-3">
+                            <LegalAgreement
+                              title="Artwork Rights Agreement"
+                              content="I confirm that I own or have the rights to use this artwork/image. I grant Arbiem Sounds full rights to display, use, and distribute this artwork in connection with my album content."
+                              isChecked={legalAgreements.artworkRights}
+                              onChange={(checked) => handleLegalAgreementChange('artworkRights', checked)}
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -1358,6 +1656,16 @@ function App() {
                                 label="audio file"
                                 file={track.audioFile}
                               />
+                              {track.audioFile && !legalAgreements.audioRights && (
+                                <div className="mt-3">
+                                  <LegalAgreement
+                                    title="Audio Rights Agreement"
+                                    content="I confirm that I own or have the rights to this audio recording. I grant Arbiem Sounds full rights to stream, distribute, and use this audio content on the platform and for promotional purposes."
+                                    isChecked={legalAgreements.audioRights}
+                                    onChange={(checked) => handleLegalAgreementChange('audioRights', checked)}
+                                  />
+                                </div>
+                              )}
                             </div>
 
                             <div className="grid md:grid-cols-2 gap-4 mb-4">
@@ -1455,6 +1763,16 @@ function App() {
                           label="video file"
                           file={existingArtist.videoData.videoFile}
                         />
+                        {existingArtist.videoData.videoFile && !legalAgreements.videoRights && (
+                          <div className="mt-3">
+                            <LegalAgreement
+                              title="Video Rights Agreement"
+                              content="I confirm that I own or have the rights to this video content. I grant Arbiem Sounds full rights to stream, distribute, and use this video content on the platform and for promotional purposes."
+                              isChecked={legalAgreements.videoRights}
+                              onChange={(checked) => handleLegalAgreementChange('videoRights', checked)}
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -1466,6 +1784,16 @@ function App() {
                         label="thumbnail image"
                         file={existingArtist.videoData.thumbnail}
                       />
+                      {existingArtist.videoData.thumbnail && !legalAgreements.artworkRights && (
+                        <div className="mt-3">
+                          <LegalAgreement
+                            title="Artwork Rights Agreement"
+                            content="I confirm that I own or have the rights to use this thumbnail image. I grant Arbiem Sounds full rights to display, use, and distribute this thumbnail in connection with my video content."
+                            isChecked={legalAgreements.artworkRights}
+                            onChange={(checked) => handleLegalAgreementChange('artworkRights', checked)}
+                          />
+                        </div>
+                      )}
                       <p className="text-sm text-gray-500 mt-2">
                         If no thumbnail is provided, the video platform will generate one automatically.
                       </p>
