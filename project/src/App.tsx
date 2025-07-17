@@ -806,8 +806,25 @@ function App() {
                           value={newArtist.artistName}
                           onChange={(e) => setNewArtist(prev => ({ ...prev, artistName: e.target.value }))}
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                          placeholder="Your stage name or band name"
+                          placeholder="Enter your artist name exactly as you want it to appear"
                         />
+                        <p className="text-xs text-gray-500 mt-1">
+                          By entering this information, you grant Arbiem Sounds rights to display and promote your artist profile.
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Bio</label>
+                        <textarea
+                          value={newArtist.bio}
+                          onChange={(e) => setNewArtist(prev => ({ ...prev, bio: e.target.value }))}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          rows={4}
+                          placeholder="Tell us about your music and artistic journey..."
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          By entering this information, you grant Arbiem Sounds rights to display and use this content for your profile.
+                        </p>
                       </div>
 
                       <div>
@@ -818,6 +835,9 @@ function App() {
                           label="profile picture"
                           file={newArtist.profilePicture}
                         />
+                        <p className="text-xs text-gray-500 mt-1">
+                          By uploading this image, you grant Arbiem Sounds rights to display and use this profile picture.
+                        </p>
                         {newArtist.profilePicture && !legalAgreements.artworkRights && (
                           <div className="mt-3">
                             <LegalAgreement
@@ -897,8 +917,11 @@ function App() {
                             singleData: { ...prev.singleData, songTitle: e.target.value }
                           }))}
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                          placeholder="Enter song title"
+                          placeholder="Enter song title exactly as you want it to appear"
                         />
+                        <p className="text-xs text-gray-500 mt-1">
+                          By entering this information, you grant Arbiem Sounds rights to display and distribute this content.
+                        </p>
                       </div>
 
                       <div>
@@ -928,6 +951,9 @@ function App() {
                           label="audio file"
                           file={newArtist.singleData.audioFile}
                         />
+                        <p className="text-xs text-gray-500 mt-1">
+                          By uploading this file, you grant Arbiem Sounds rights to stream and distribute this audio content.
+                        </p>
                         {newArtist.singleData.audioFile && !legalAgreements.audioRights && (
                           <div className="mt-3">
                             <LegalAgreement
@@ -948,6 +974,9 @@ function App() {
                           label="artwork"
                           file={newArtist.singleData.artwork}
                         />
+                        <p className="text-xs text-gray-500 mt-1">
+                          By uploading this artwork, you grant Arbiem Sounds rights to display and use this image.
+                        </p>
                         {newArtist.singleData.artwork && !legalAgreements.artworkRights && (
                           <div className="mt-3">
                             <LegalAgreement
@@ -1065,8 +1094,11 @@ function App() {
                             albumData: { ...prev.albumData, albumTitle: e.target.value }
                           }))}
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                          placeholder="Enter album title"
+                          placeholder="Enter album title exactly as you want it to appear"
                         />
+                        <p className="text-xs text-gray-500 mt-1">
+                          By entering this information, you grant Arbiem Sounds rights to display and distribute this content.
+                        </p>
                       </div>
 
                       <div>
@@ -1077,6 +1109,9 @@ function App() {
                           label="album artwork"
                           file={newArtist.albumData.albumArtwork}
                         />
+                        <p className="text-xs text-gray-500 mt-1">
+                          By uploading this artwork, you grant Arbiem Sounds rights to display and use this image.
+                        </p>
                         {newArtist.albumData.albumArtwork && !legalAgreements.artworkRights && (
                           <div className="mt-3">
                             <LegalAgreement
@@ -1125,8 +1160,11 @@ function App() {
                                   value={track.title}
                                   onChange={(e) => updateAlbumTrack(trackIndex, 'title', e.target.value)}
                                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                  placeholder="Enter track title"
+                                  placeholder="Enter track title exactly as you want it to appear"
                                 />
+                                <p className="text-xs text-gray-500 mt-1">
+                                  By entering this information, you grant Arbiem Sounds rights to display and distribute this content.
+                                </p>
                               </div>
 
                               <div>
@@ -1152,6 +1190,9 @@ function App() {
                                 label="audio file"
                                 file={track.audioFile}
                               />
+                              <p className="text-xs text-gray-500 mt-1">
+                                By uploading this file, you grant Arbiem Sounds rights to stream and distribute this audio content.
+                              </p>
                               {track.audioFile && !legalAgreements.audioRights && (
                                 <div className="mt-3">
                                   <LegalAgreement
@@ -1249,6 +1290,9 @@ function App() {
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           placeholder="Enter video title exactly as you want it to appear"
                         />
+                        <p className="text-xs text-gray-500 mt-1">
+                          By entering this information, you grant Arbiem Sounds rights to display and distribute this content.
+                        </p>
                       </div>
 
                       <div>
@@ -1259,6 +1303,9 @@ function App() {
                           label="video file"
                           file={newArtist.videoData.videoFile}
                         />
+                        <p className="text-xs text-gray-500 mt-1">
+                          By uploading this file, you grant Arbiem Sounds rights to stream and distribute this video content.
+                        </p>
                         {newArtist.videoData.videoFile && !legalAgreements.videoRights && (
                           <div className="mt-3">
                             <LegalAgreement
@@ -1280,6 +1327,9 @@ function App() {
                         label="thumbnail image"
                         file={newArtist.videoData.thumbnail}
                       />
+                      <p className="text-xs text-gray-500 mt-1">
+                        By uploading this thumbnail, you grant Arbiem Sounds rights to display and use this image.
+                      </p>
                       {newArtist.videoData.thumbnail && !legalAgreements.artworkRights && (
                         <div className="mt-3">
                           <LegalAgreement
@@ -1401,8 +1451,11 @@ function App() {
                             singleData: { ...prev.singleData, songTitle: e.target.value }
                           }))}
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                          placeholder="Enter song title"
+                          placeholder="Enter song title exactly as you want it to appear"
                         />
+                        <p className="text-xs text-gray-500 mt-1">
+                          By entering this information, you grant Arbiem Sounds rights to display and distribute this content.
+                        </p>
                       </div>
 
                       <div>
@@ -1432,6 +1485,9 @@ function App() {
                           label="audio file"
                           file={existingArtist.singleData.audioFile}
                         />
+                        <p className="text-xs text-gray-500 mt-1">
+                          By uploading this file, you grant Arbiem Sounds rights to stream and distribute this audio content.
+                        </p>
                         {existingArtist.singleData.audioFile && !legalAgreements.audioRights && (
                           <div className="mt-3">
                             <LegalAgreement
@@ -1452,6 +1508,9 @@ function App() {
                           label="artwork"
                           file={existingArtist.singleData.artwork}
                         />
+                        <p className="text-xs text-gray-500 mt-1">
+                          By uploading this artwork, you grant Arbiem Sounds rights to display and use this image.
+                        </p>
                         {existingArtist.singleData.artwork && !legalAgreements.artworkRights && (
                           <div className="mt-3">
                             <LegalAgreement
@@ -1569,8 +1628,11 @@ function App() {
                             albumData: { ...prev.albumData, albumTitle: e.target.value }
                           }))}
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                          placeholder="Enter album title"
+                          placeholder="Enter album title exactly as you want it to appear"
                         />
+                        <p className="text-xs text-gray-500 mt-1">
+                          By entering this information, you grant Arbiem Sounds rights to display and distribute this content.
+                        </p>
                       </div>
 
                       <div>
@@ -1581,6 +1643,9 @@ function App() {
                           label="album artwork"
                           file={existingArtist.albumData.albumArtwork}
                         />
+                        <p className="text-xs text-gray-500 mt-1">
+                          By uploading this artwork, you grant Arbiem Sounds rights to display and use this image.
+                        </p>
                         {existingArtist.albumData.albumArtwork && !legalAgreements.artworkRights && (
                           <div className="mt-3">
                             <LegalAgreement
@@ -1629,8 +1694,11 @@ function App() {
                                   value={track.title}
                                   onChange={(e) => updateAlbumTrack(trackIndex, 'title', e.target.value)}
                                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                                  placeholder="Enter track title"
+                                  placeholder="Enter track title exactly as you want it to appear"
                                 />
+                                <p className="text-xs text-gray-500 mt-1">
+                                  By entering this information, you grant Arbiem Sounds rights to display and distribute this content.
+                                </p>
                               </div>
 
                               <div>
@@ -1656,6 +1724,9 @@ function App() {
                                 label="audio file"
                                 file={track.audioFile}
                               />
+                              <p className="text-xs text-gray-500 mt-1">
+                                By uploading this file, you grant Arbiem Sounds rights to stream and distribute this audio content.
+                              </p>
                               {track.audioFile && !legalAgreements.audioRights && (
                                 <div className="mt-3">
                                   <LegalAgreement
@@ -1753,6 +1824,9 @@ function App() {
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           placeholder="Enter video title exactly as you want it to appear"
                         />
+                        <p className="text-xs text-gray-500 mt-1">
+                          By entering this information, you grant Arbiem Sounds rights to display and distribute this content.
+                        </p>
                       </div>
 
                       <div>
@@ -1763,6 +1837,9 @@ function App() {
                           label="video file"
                           file={existingArtist.videoData.videoFile}
                         />
+                        <p className="text-xs text-gray-500 mt-1">
+                          By uploading this file, you grant Arbiem Sounds rights to stream and distribute this video content.
+                        </p>
                         {existingArtist.videoData.videoFile && !legalAgreements.videoRights && (
                           <div className="mt-3">
                             <LegalAgreement
@@ -1784,6 +1861,9 @@ function App() {
                         label="thumbnail image"
                         file={existingArtist.videoData.thumbnail}
                       />
+                      <p className="text-xs text-gray-500 mt-1">
+                        By uploading this thumbnail, you grant Arbiem Sounds rights to display and use this image.
+                      </p>
                       {existingArtist.videoData.thumbnail && !legalAgreements.artworkRights && (
                         <div className="mt-3">
                           <LegalAgreement
